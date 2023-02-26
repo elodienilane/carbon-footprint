@@ -1,14 +1,15 @@
+"""
+Lambda function to transform data from the Global Footprint Network API and upload to S3
+"""
 import json
 import urllib.parse
-import boto3
 import logging
-import pandas as pd
 from json import JSONDecodeError
-
-print('Loading function')
+import boto3
+import pandas as pd
 
 s3_client = boto3.client('s3')
-destination_bucket = "gfn-transformed"
+DESTINATION_BUCKET = "gfn-transformed"
 
 logger = logging.getLogger()
 logging.basicConfig(level=logging.WARNING)
@@ -37,8 +38,11 @@ class GfnEtl(object):
     def transform_data(self, bucket, file_key):
         """
         Transform the data from the API to csv for snowpipe
+
+        Parameters:
+            bucket (str): The bucket the file was uploaded to
+            file_key (str): The key of the file uploaded
         """
-        
         try:
             # Get the object from the event
             logger.info(f"Added file Key: {file_key}")
@@ -48,7 +52,7 @@ class GfnEtl(object):
             try:
                 json_file = json.loads(response_body.decode('utf-8'))
                 data_frame = pd.DataFrame(json_file)
-                
+
                 # Clean up the data
                 self.cleanup_data(data_frame)
 
@@ -60,14 +64,14 @@ class GfnEtl(object):
                 data_frame.to_csv(loc_file, index=False)
 
                 # Upload to S3
-                s3_client.upload_file(loc_file, destination_bucket, f"{file_name}.csv")
+                s3_client.upload_file(loc_file, DESTINATION_BUCKET, f"{file_name}.csv")
             except JSONDecodeError as json_decode_error:
                 logging.info(f"Could not load file {file_key} uploaded to bucket: {bucket}")
 
-        except Exception as e:
-            logger.info(e)
+        except Exception as ex:
+            logger.info(ex)
             logger.error(f'Error getting object {file_key} from bucket {bucket}. Make sure they exist and your bucket is in the same region as this function.')
-            raise e
+            raise ex
 
 
 def lambda_handler(event, context):

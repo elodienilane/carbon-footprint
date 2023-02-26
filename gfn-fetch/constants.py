@@ -10,7 +10,7 @@ YEARS = 'years'
 TYPES = 'types'
 
 MIN_YEAR = 2010
-MODE = 'FAKE'
+MODE = 'PROD'
 
 LOCAL_FILE_SYS = "/tmp"
 

@@ -75,7 +75,7 @@ class DataFetcher(object):
         
         Parameters:
             endpoint (str): The endpoint to get the data from
-            write_to_local (bool): Whether to write the data to a local file
+            write (bool): Whether to write the data to a local file
         """
         data = self.fetch_url(f"{constants.BASE_URL}{endpoint}")
         if write:
@@ -142,8 +142,10 @@ class DataFetcher(object):
 
         years = self.download_data(constants.YEARS)
 
+        # Get the data for each year > MIN_YEAR as set in constants.py
         self.get_yearly_data(years)
 
+        # Upload all files in the local file system to S3
         files = [f for f in listdir(constants.LOCAL_FILE_SYS) if isfile(join(constants.LOCAL_FILE_SYS, f))]
         for f in files:
             s3_interface.upload_file(f"{constants.LOCAL_FILE_SYS}/{f}", constants.S3_BUCKET)
@@ -157,9 +159,3 @@ def lambda_handler(event, context):
     _start = time.time()
     data_fetcher.get_data()
     logger.info("Execution time: %s seconds", (time.time() - _start))
-
-if __name__ == '__main__':
-    """
-    Used for local testing
-    """
-    lambda_handler(None, None)
