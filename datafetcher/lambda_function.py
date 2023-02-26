@@ -54,7 +54,7 @@ def get_dim(endpoint):
     data = download_data(f"{constants.BASE_URL}/{endpoint}")
 
     # Upload file to s3
-    s3_interface.upload_file(data, constants.S3_BUCKET, f'{endpoint}.json')
+    s3_interface.upload_file(data=data, bucket=constants.S3_BUCKET, object_name=f'{endpoint}.json', mode=constants.MODE)
 
     return data
 
@@ -82,4 +82,7 @@ def lambda_handler(event, context):
     return
 
 if __name__ == '__main__':
+    """
+    Used for local testing
+    """
     lambda_handler(None, None)
