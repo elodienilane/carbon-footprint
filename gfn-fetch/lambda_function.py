@@ -6,6 +6,7 @@ import logging
 import os
 from os import listdir
 from os.path import isfile, join
+import json
 
 import threading
 import queue
@@ -52,7 +53,6 @@ class DataFetcher(object):
             return response.json()
         else:
             logger.error('Failed to retrieve from %s', url)
-            # Return None
             return None
 
     def write_to_local(self, data, file_name, loc=constants.LOCAL_FILE_SYS):
@@ -66,7 +66,7 @@ class DataFetcher(object):
         """
         path = loc + "/" + file_name
         with open(path, "w", encoding="utf-8") as file:
-            file.write(str(data))
+            json.dump(data, file, indent=4)
         return file_name
 
     def download_data(self, endpoint, write=True):
@@ -102,7 +102,7 @@ class DataFetcher(object):
                 response = session.get(url=url, auth=(constants.GFN_USERNAME, constants.GFN_API_KEY), headers=headers, timeout=10)
                 if response.ok:
                     logger.info('Data successfully retrieved from %s', url)
-                    self.results.append(response.json())
+                    self.results += response.json()
                 else:
                     logger.error('Failed to retrieve from %s', url)
                     self.failed_requests.append(year)
