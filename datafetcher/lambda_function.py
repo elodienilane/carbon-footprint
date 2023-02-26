@@ -9,7 +9,11 @@ Methods:
 #!/usr/bin/env python
 import time
 import logging
+from os import listdir
+from os.path import isfile, join
+import json
 import requests
+
 
 import s3_interface
 import constants
@@ -18,7 +22,8 @@ logger = logging.getLogger()
 logging.basicConfig(level=logging.WARNING)
 logger.setLevel(logging.INFO)
 
-def download_data(url):
+
+def get_data(url):
     """Get the data from the API
     
     Parameters:
@@ -38,23 +43,38 @@ def download_data(url):
         logger.info('Data successfully retrieved from %s', url)
         return response.json()
     else:
-        logger.error('Failed to retriev successfully retrieved from %s', url)
+        logger.error('Failed to retrieve from %s', url)
         # Return None
         return None
 
-def get_dim(endpoint):
+def write_to_local(data, file_name, loc=constants.LOCAL_FILE_SYS):
     """
-    Get the data from the API and upload to S3
+    Write the data to a local file
+    
+    Parameters:
+        data (dict): The data to write
+        file_name (str): The name of the file to write to
+        loc (str): The location to write to
+    """
+    path = loc + "/" + file_name
+    with open(path, "w", encoding="utf-8") as file:
+        file.write(str(data))
+    return file_name
+
+def download_data(endpoint, write=True):
+    """
+    Get the data from the API and save locally
     
     Parameters:
         endpoint (str): The endpoint to get the data from
-        file_name (str): The name of the file to save
+        write_to_local (bool): Whether to write the data to a local file
     """
-    # Get the data
-    data = download_data(f"{constants.BASE_URL}/{endpoint}")
+    data = get_data(f"{constants.BASE_URL}/{endpoint}")
+    if write:
+        write_to_local(data, f"{endpoint}.json")
 
-    # Upload file to s3
-    s3_interface.upload_file(data=data, bucket=constants.S3_BUCKET, object_name=f'{endpoint}.json', mode=constants.MODE)
+    # # Upload file to s3
+    # s3_interface.upload_file(data=data, bucket=constants.S3_BUCKET, object_name=f'{endpoint}.json', mode=constants.MODE)
 
     return data
 
@@ -63,21 +83,30 @@ def lambda_handler(event, context):
     Main method called by Lambda
     """
     logger.info("Starting data loading")
-    startTime = float(time.time())
+    start_time = float(time.time())
 
-    get_dim(constants.COUNTRIES)
-    get_dim(constants.TYPES)
+    download_data(constants.COUNTRIES)
+    download_data(constants.TYPES)
 
-    years = get_dim(constants.YEARS)
+    years = download_data(constants.YEARS)
 
+    full_data = []
     # Retrieve data - even if requirement says since 2010, it's reasonable to get it all given the dataset size
     for year in years:
-        current_url = f"{constants.BASE_URL}/data/all/{year['year']}"
-        data = download_data(current_url)
-        # Upload file to s3
-        s3_interface.upload_file(data, constants.S3_BUCKET, f'data_{year["year"]}.json')
+        current_url = f"data/all/{year['year']}"
+        data = download_data(current_url, write=False)
 
-    logger.info("Finished in %s seconds", time.time() - startTime)
+        full_data.append(data)
+        # Upload file to s3
+        # s3_interface.upload_file(data=data, bucket=constants.S3_BUCKET, object_name=f'data_{year["year"]}.json')
+    
+    write_to_local(full_data, "data.json")
+
+    files = [f for f in listdir(constants.LOCAL_FILE_SYS) if isfile(join(constants.LOCAL_FILE_SYS, f))]
+    for f in files:
+        s3_interface.upload_file(f"{constants.LOCAL_FILE_SYS}/{f}", constants.S3_BUCKET)
+
+    logger.info("Finished in %s seconds", time.time() - start_time)
 
     return
 

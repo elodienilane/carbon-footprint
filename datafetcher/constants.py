@@ -7,6 +7,8 @@ DEST_FOLDER = 'data'
 
 MODE = 'FAKE'
 
+LOCAL_FILE_SYS = "/tmp"
+
 BASE_URL = 'https://api.footprintnetwork.org/v1'
 
 DATA_URLS = ['data']
@@ -15,4 +17,4 @@ COUNTRIES = 'countries'
 YEARS = 'years'
 TYPES = 'types'
 
-S3_BUCKET = "global-footprint-raw"
+S3_BUCKET = "gfn-raw"

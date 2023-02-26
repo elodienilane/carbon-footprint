@@ -10,16 +10,19 @@ import constants
 
 s3_client = boto3.client("s3")
 
-def upload_file(file_name, bucket, object_name=None, mode="FAKE"):
+def upload_file(file_name, bucket, object_name=None):
     """Upload a file to an S3 bucket
 
-    :param file_name: File to upload
-    :param bucket: Bucket to upload to
-    :param object_name: S3 object name. If not specified then file_name is used
-    :return: True if file was uploaded, else False
+    Parameters:
+        file_name (str): File to upload
+        bucket (str): Bucket to upload to
+        object_name (str): S3 object name. If not specified then file_name is used
+
+    Returns:
+        bool: True if file was uploaded, else False
     """
 
-    if mode != "PROD":
+    if constants.MODE != "PROD":
         # Save file locally
         return save_file(file_name, bucket, object_name)
 
@@ -39,8 +42,10 @@ def upload_file(file_name, bucket, object_name=None, mode="FAKE"):
 def save_file(data, bucket, file_name):
     """Save the data to a file
     
-    :param data: (dict) The data to save
-    :file_name: (str) The name of the file to save
+    Parameters:
+        data (dict): The data to save
+        bucket (str): The bucket to save the file to
+        file_name (str): The name of the file to save
     """
     # Create the folder if it doesn't exist
     if not os.path.exists(bucket):
