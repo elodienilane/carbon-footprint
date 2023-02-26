@@ -7,11 +7,13 @@ Methods:
     main: Main method
 """
 #!/usr/bin/env python
+import threading
+import queue
+import os
 import time
 import logging
 from os import listdir
 from os.path import isfile, join
-import json
 import requests
 
 
@@ -21,6 +23,11 @@ import constants
 logger = logging.getLogger()
 logging.basicConfig(level=logging.WARNING)
 logger.setLevel(logging.INFO)
+
+results = []
+failed_requests = []
+Ids = set()
+num_workers = 3
 
 
 def get_data(url):
@@ -38,7 +45,7 @@ def get_data(url):
     response = requests.get(url, auth=(constants.GFN_USERNAME, constants.GFN_API_KEY), headers=headers, timeout=10)
 
     # Check the status code
-    if response.status_code == 200:
+    if response.ok:
         # Return the data
         logger.info('Data successfully retrieved from %s', url)
         return response.json()
@@ -46,6 +53,28 @@ def get_data(url):
         logger.error('Failed to retrieve from %s', url)
         # Return None
         return None
+
+def worker(worker_num:int, q:queue) -> None:
+    """Worker thread to get the data from the API
+
+    Parameters:
+        worker_num (int): The number of workers
+        q (queue): The queue to get the info from
+    """
+    with requests.Session() as session:
+        while True:
+            Ids.add(f'Worker: {worker_num}, PID: {os.getpid()}, TID: {threading.get_ident()}')
+            year = q.get()
+            endpoint = f"data/all/{year}"
+            print(f'WORKER {worker_num}: API request for year: {year} started ...')
+            headers = {"HTTP_ACCEPT":"application/json"}
+
+            response = session.get(url=constants.BASE_URL + endpoint, auth=(constants.GFN_USERNAME, constants.GFN_API_KEY), headers=headers, timeout=10)
+            if response.ok:
+                results.append(response.json())
+            else:
+                failed_requests.append(year)
+            q.task_done()
 
 def write_to_local(data, file_name, loc=constants.LOCAL_FILE_SYS):
     """
@@ -69,14 +98,35 @@ def download_data(endpoint, write=True):
         endpoint (str): The endpoint to get the data from
         write_to_local (bool): Whether to write the data to a local file
     """
-    data = get_data(f"{constants.BASE_URL}/{endpoint}")
+    data = get_data(f"{constants.BASE_URL}{endpoint}")
     if write:
         write_to_local(data, f"{endpoint}.json")
 
-    # # Upload file to s3
-    # s3_interface.upload_file(data=data, bucket=constants.S3_BUCKET, object_name=f'{endpoint}.json', mode=constants.MODE)
-
     return data
+
+def get_yearly_data(years):
+    """
+    Get the data for each year and save locally
+    
+    Parameters:
+        years (list): The years to get the data for
+    """
+    # Create queue and add items
+    q = queue.Queue()
+    for year in years:
+        q.put(year['year'])
+
+    # turn-on the worker thread(s)
+    # daemon: runs without blocking the main program from exiting
+    for i in range(num_workers):
+        threading.Thread(target=worker, args=(i, q), daemon=True).start()
+
+    # block until all tasks are done
+    q.join()
+
+    write_to_local(results, "data.json")
+
+    return
 
 def lambda_handler(event, context):
     """
@@ -90,17 +140,7 @@ def lambda_handler(event, context):
 
     years = download_data(constants.YEARS)
 
-    full_data = []
-    # Retrieve data - even if requirement says since 2010, it's reasonable to get it all given the dataset size
-    for year in years:
-        current_url = f"data/all/{year['year']}"
-        data = download_data(current_url, write=False)
-
-        full_data.append(data)
-        # Upload file to s3
-        # s3_interface.upload_file(data=data, bucket=constants.S3_BUCKET, object_name=f'data_{year["year"]}.json')
-    
-    write_to_local(full_data, "data.json")
+    get_yearly_data(years)
 
     files = [f for f in listdir(constants.LOCAL_FILE_SYS) if isfile(join(constants.LOCAL_FILE_SYS, f))]
     for f in files:
