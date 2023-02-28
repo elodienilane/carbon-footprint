@@ -29,7 +29,7 @@ class GfnEtl(object):
         """
         # Remove non-ASCII characters and trim whitespaces
         data_frame.replace({r'[^\x00-\x7F]+':""}, regex=True, inplace=True)
-        print(data_frame)
+
         try:
             data_frame = data_frame.apply(lambda x: x.str.strip())
         except AttributeError:

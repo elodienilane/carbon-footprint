@@ -3,13 +3,10 @@ Fetch data from GFN API and upload to S3
 """
 import time
 import logging
-import os
 from os import listdir
 from os.path import isfile, join
 import json
 
-import threading
-import queue
 import requests
 import constants
 import s3_interface
@@ -27,10 +24,6 @@ class DataFetcher(object):
         upload_data_s3: Upload data to S3
         main: Main method
     """
-    results = []
-    failed_requests = []
-    Ids = set()
-    num_workers = 3
 
     def fetch_url(self, url):
         """Get the data from the API
@@ -83,31 +76,6 @@ class DataFetcher(object):
 
         return data
 
-    def worker(self, worker_num:int, q:queue) -> None:
-        """Worker thread to get the data from the API
-
-        Parameters:
-            worker_num (int): The number of workers
-            q (queue): The queue to get the info from
-        """
-        with requests.Session() as session:
-            while True:
-                self.Ids.add(f'Worker: {worker_num}, PID: {os.getpid()}, TID: {threading.get_ident()}')
-                year = q.get()
-                endpoint = f"data/all/{year}"
-                logger.info(f'WORKER {worker_num}: API request for year: {year} started ...')
-                headers = {"HTTP_ACCEPT":"application/json"}
-
-                url = constants.BASE_URL + endpoint
-                response = session.get(url=url, auth=(constants.GFN_USERNAME, constants.GFN_API_KEY), headers=headers, timeout=10)
-                if response.ok:
-                    logger.info('Data successfully retrieved from %s', url)
-                    self.results += response.json()
-                else:
-                    logger.error('Failed to retrieve from %s', url)
-                    self.failed_requests.append(year)
-                q.task_done()
-
     def get_yearly_data(self, years):
         """
         Get the data for each year and save locally
@@ -115,21 +83,23 @@ class DataFetcher(object):
         Parameters:
             years (list): The years to get the data for
         """
+        results = []
+        failed_requests = []
         # Create queue and add items
-        q = queue.Queue()
         for year in years:
             if 'year' in year and year['year'] >= constants.MIN_YEAR:
-                q.put(year['year'])
+                endpoint = f"data/all/{year['year']}"
+                logger.info(f'API request for year: {year["year"]} started ...')
+                data = self.fetch_url(f"{constants.BASE_URL}{endpoint}")
+                if data:
+                    results += data
+                else:
+                    failed_requests.append(year)
 
-        # turn-on the worker thread(s)
-        # daemon: runs without blocking the main program from exiting
-        for i in range(self.num_workers):
-            threading.Thread(target=self.worker, args=(i, q), daemon=True).start()
-
-        # block until all tasks are done
-        q.join()
-
-        self.write_to_local(self.results, "data.json")
+        if results:
+            self.write_to_local(results, "data.json")
+        else:
+            logger.error("No data retrieved")
 
     def get_data(self):
         """
