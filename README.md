@@ -21,17 +21,17 @@ Get data from API, with write permission on gfn-raw bucket.
 
 <img width="1213" alt="image" src="https://user-images.githubusercontent.com/1748668/221517618-3ee1ed17-c5d9-4b97-85a4-5cffaed9a468.png">
 
-<img width="1008" alt="image" src="https://user-images.githubusercontent.com/1748668/221521167-681aa0ed-0fb1-4cb5-aef3-44b746598dbc.png">
+![image](https://user-images.githubusercontent.com/1748668/221868895-354dfb16-534b-430d-9390-7fd1be744b2b.png)
 
 ### gfn-etl
 Triggered by data upload to gfn-raw bucket, extract from file, transform, load as csv to gfn-transformed bucket. Read permission on gfn-raw, write permission on gfn-transformed.
 
 <img width="1214" alt="image" src="https://user-images.githubusercontent.com/1748668/221517686-73c25bba-d2ae-4459-961b-c83abc53a596.png">
 
-<img width="1009" alt="image" src="https://user-images.githubusercontent.com/1748668/221520897-9bbea477-f392-4775-8bd9-c6ee2b88b6a4.png">
+![image](https://user-images.githubusercontent.com/1748668/221868074-dd28b460-7e73-479b-b82b-a38a1c299588.png)
 
 Layers:
-<img width="1208" alt="image" src="https://user-images.githubusercontent.com/1748668/221520318-87a03926-1ab4-495f-a426-b2b7dd815290.png">
+![image](https://user-images.githubusercontent.com/1748668/221868533-9ee6f940-988d-4248-a6d5-d9c208ed6fd4.png)
 
 
 
